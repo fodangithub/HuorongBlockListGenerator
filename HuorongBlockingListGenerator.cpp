@@ -1,13 +1,18 @@
 // HuorongBlockingListGenerator.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include <iostream>
+
+#include <chrono>
+#include <codecvt>
 #include <fstream>
-#include <io.h>
-#include <stdio.h>
+#include <iostream>
+#include <locale>
 #include <vector>
-#include <direct.h>
+
 #include <Windows.h>
+#include <io.h>
+
+#include <nlohmann/json.hpp>
 
 #define _UNICODE
 
@@ -71,17 +76,19 @@ std::vector<std::wstring> find_excs(const wchar_t* pattern)
 
 std::wstring create_block(const std::wstring&& file_name) 
 {
-    std::wstring s;
-    for (auto c : file_name) {
-        if (c == L'\\') {
-            s.append(L"\\\\");
-        }
-        else {
-            s += c;
-        }
-    }
-        
-    return L"{ \"procname\": \"" + s + L"\",\"block\": true}";
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
+
+    auto now = std::chrono::system_clock::now();
+    auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+                         now.time_since_epoch())
+                         .count();   
+
+    nlohmann::json json;
+    json["procname"] = cvt.to_bytes(file_name);
+    json["block"] = true;
+    json["time"] = timestamp;
+    auto utf8 = json.dump();
+    return cvt.from_bytes(utf8);
 }
 
 std::wstring to_json(const std::vector<std::wstring>& file_names) 
